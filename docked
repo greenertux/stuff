@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Last change: 07/12/2015 by greenertux (Tristan Hoffmann)
+
+# This is a script to be used for controlling the docking / undocking behavior of portable computers
+# Place this script in your autostart directory (e.g. $HOME/.kde4/Autostart and make it executable)
+
+# This works by detecting whether a certain keyboard is connected.
+# This way it even works when you don't have an actual docking station, but want to automatically set your 
+# screen settings when you connect your external keyboard and monitor.
+
+# Changes required: 
+# 1) Update vendor and product to match the USB ID of your keyboard or any other device you want to use as a trigger
+# 2) Update the commands for xrandr based on your graphics card and required monitor resolutions (run xrandr to figure them out)
+vendor="045e"
+product="0040"
+prevstate=""
+while [ "1" == "1" ] ; do
+  state="undocked"
+  for dev in /sys/bus/usb/devices/*; do 
+    if [ -e ${dev}/idVendor ]; then
+      read dev_vendor < ${dev}/idVendor
+      read dev_product < ${dev}/idProduct
+      if [ "${dev_vendor}" = "${vendor}" ]; then
+        if [ "${dev_product}" = "${product}" ]; then
+	  state="docked"	
+          if [ "${prevstate}" = "undocked" ] || [ "${prevstate}" = "" ]; then
+            echo "Setting up mode: docked"
+            xrandr --output HDMI3 --mode 1680x1050
+            xrandr --output LVDS1 --off
+            prevstate="docked"
+            break
+          fi
+        fi
+      fi
+    fi
+  done
+  if [ "${state}" = "undocked" ]; then
+    if [ "${prevstate}" = "docked" ] || [ "${prevstate}" = "" ]; then
+      echo "Setting up mode: undocked"
+      xrandr --output LVDS1 --mode 1366x768
+      xrandr --output HDMI3 --off
+      xrandr --output VGA1 --off
+      prevstate="undocked"
+    fi
+  fi
+  sleep 5 # Checks every 5 seconds, whether the trigger (USB device) is still present or not
+done
+
